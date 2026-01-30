@@ -1,6 +1,5 @@
 import { useState } from 'react';
-
-const API_URL = import.meta.env.VITE_API_URL || '';
+import { supabase } from '../lib/supabase';
 
 function SubjectFilter({ subjects, selectedSubject, onSubjectChange, onSubjectCreated }) {
   const [newSubjectName, setNewSubjectName] = useState('');
@@ -15,27 +14,25 @@ function SubjectFilter({ subjects, selectedSubject, onSubjectChange, onSubjectCr
     setIsCreating(true);
     setError('');
 
-    try {
-      const response = await fetch(`${API_URL}/api/subjects`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newSubjectName.trim() }),
-      });
+    const { data, error: insertError } = await supabase
+      .from('subjects')
+      .insert({ name: newSubjectName.trim() })
+      .select()
+      .single();
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to create subject');
+    if (insertError) {
+      if (insertError.code === '23505') {
+        setError('Subject already exists');
+      } else {
+        setError(insertError.message || 'Failed to create subject');
       }
-
-      const subject = await response.json();
-      onSubjectCreated?.(subject);
+    } else {
+      onSubjectCreated?.(data);
       setNewSubjectName('');
       setShowForm(false);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsCreating(false);
     }
+
+    setIsCreating(false);
   };
 
   return (

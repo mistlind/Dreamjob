@@ -1,6 +1,5 @@
-import { useState } from 'react';
-
-const API_URL = import.meta.env.VITE_API_URL || '';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 function SubmitAnswer({ subjects, selectedSubject, onAnswerSubmitted }) {
   const [content, setContent] = useState('');
@@ -11,7 +10,7 @@ function SubmitAnswer({ subjects, selectedSubject, onAnswerSubmitted }) {
   const [success, setSuccess] = useState(false);
 
   // Update subjectId when selectedSubject changes
-  useState(() => {
+  useEffect(() => {
     if (selectedSubject) {
       setSubjectId(selectedSubject);
     }
@@ -29,34 +28,28 @@ function SubmitAnswer({ subjects, selectedSubject, onAnswerSubmitted }) {
     setError('');
     setSuccess(false);
 
-    try {
-      const response = await fetch(`${API_URL}/api/answers`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: content.trim(),
-          author: author.trim(),
-          subjectId,
-        }),
-      });
+    const { data, error: insertError } = await supabase
+      .from('answers')
+      .insert({
+        content: content.trim(),
+        author: author.trim(),
+        subject_id: subjectId,
+      })
+      .select('*, subjects(name)')
+      .single();
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to submit answer');
-      }
-
-      const answer = await response.json();
-      onAnswerSubmitted?.(answer);
+    if (insertError) {
+      setError(insertError.message || 'Failed to submit answer');
+    } else {
+      onAnswerSubmitted?.(data);
       setContent('');
       setSuccess(true);
 
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsSubmitting(false);
     }
+
+    setIsSubmitting(false);
   };
 
   return (

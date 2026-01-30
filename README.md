@@ -1,10 +1,10 @@
 # DreamJob - Dynamic Feed Application
 
-A real-time scrolling feed application built with React, Node.js/Express, Socket.io, and PostgreSQL.
+A real-time scrolling feed application built with React and Supabase.
 
 ## Features
 
-- **Real-time updates**: New answers appear instantly via WebSockets
+- **Real-time updates**: New answers appear instantly via Supabase Realtime
 - **Subject filtering**: Filter the feed by different subjects
 - **Auto-scrolling feed**: Content scrolls automatically
 - **Pause on hover**: Feed pauses when you hover over it
@@ -14,68 +14,59 @@ A real-time scrolling feed application built with React, Node.js/Express, Socket
 ## Tech Stack
 
 - **Frontend**: React 18 + Vite
-- **Backend**: Node.js + Express
-- **Real-time**: Socket.io
-- **Database**: PostgreSQL + Prisma ORM
+- **Backend**: Supabase (PostgreSQL + Realtime + API)
 - **Styling**: CSS with custom properties
 
 ## Prerequisites
 
 - Node.js 18+
-- PostgreSQL database
-- npm or yarn
+- Supabase account (free tier works)
 
 ## Setup
 
-### 1. Clone and Install Dependencies
+### 1. Create Supabase Project
+
+1. Go to [supabase.com](https://supabase.com) and create a new project
+2. Wait for the project to be provisioned
+
+### 2. Set Up Database
+
+1. Go to the SQL Editor in your Supabase dashboard
+2. Copy and paste the contents of `supabase/schema.sql`
+3. Click "Run" to create tables and sample data
+
+### 3. Enable Realtime
+
+1. Go to Database > Replication in Supabase Dashboard
+2. Enable replication for both `subjects` and `answers` tables
+
+### 4. Configure Environment
+
+Create a `.env` file in the `client` directory:
 
 ```bash
-# Install all dependencies (root, server, and client)
-npm run install:all
-```
-
-### 2. Configure Database
-
-Create a `.env` file in the `server` directory:
-
-```bash
-cd server
+cd client
 cp .env.example .env
 ```
 
-Edit `.env` with your PostgreSQL connection string:
+Add your Supabase credentials (find these in Project Settings > API):
 
 ```
-DATABASE_URL="postgresql://user:password@localhost:5432/dreamjob?schema=public"
-PORT=3001
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-### 3. Initialize Database
+### 5. Install and Run
 
 ```bash
-cd server
-npm run db:generate  # Generate Prisma client
-npm run db:push      # Create database tables
-```
+# Install dependencies
+npm install
 
-### 4. Run the Application
-
-```bash
-# From root directory - runs both server and client
+# Start development server
 npm run dev
 ```
 
-Or run them separately:
-
-```bash
-# Terminal 1 - Server
-cd server && npm run dev
-
-# Terminal 2 - Client
-cd client && npm run dev
-```
-
-### 5. Open the Application
+### 6. Open the Application
 
 Visit `http://localhost:5173` in your browser.
 
@@ -90,66 +81,74 @@ dreamjob/
 │   │   │   ├── FeedItem.jsx       # Individual answer card
 │   │   │   ├── SubjectFilter.jsx  # Subject filter sidebar
 │   │   │   └── SubmitAnswer.jsx   # Answer submission form
-│   │   ├── hooks/
-│   │   │   └── useSocket.js       # Socket.io hooks
+│   │   ├── lib/
+│   │   │   └── supabase.js        # Supabase client
 │   │   ├── App.jsx
 │   │   ├── main.jsx
 │   │   └── index.css
 │   └── package.json
-├── server/                 # Node.js backend
-│   ├── src/
-│   │   └── index.js        # Express + Socket.io server
-│   ├── prisma/
-│   │   └── schema.prisma   # Database schema
-│   └── package.json
-└── package.json            # Root package.json
+├── supabase/
+│   └── schema.sql          # Database schema
+└── package.json
 ```
 
-## API Endpoints
+## How It Works
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/subjects` | Get all subjects |
-| POST | `/api/subjects` | Create a new subject |
-| GET | `/api/subjects/:id/answers` | Get answers for a subject |
-| POST | `/api/answers` | Submit a new answer |
-| GET | `/api/health` | Health check |
+### Real-time Subscriptions
 
-## Socket Events
+The app uses Supabase Realtime to subscribe to database changes:
 
-| Event | Direction | Description |
-|-------|-----------|-------------|
-| `subject:join` | Client → Server | Join a subject room |
-| `answer:created` | Server → Client | New answer broadcast |
-| `subject:created` | Server → Client | New subject broadcast |
-
-## Configuration
-
-### Environment Variables
-
-**Server (.env)**:
-- `DATABASE_URL` - PostgreSQL connection string
-- `PORT` - Server port (default: 3001)
-- `CLIENT_URL` - Client URL for CORS (default: http://localhost:5173)
-
-**Client (.env)**:
-- `VITE_API_URL` - API URL (uses proxy in development)
-- `VITE_SOCKET_URL` - Socket.io server URL
-
-## Development
-
-### Database Management
-
-```bash
-# View database in browser
-cd server && npm run db:studio
-
-# Reset database
-cd server && npx prisma db push --force-reset
+```javascript
+supabase
+  .channel('answers-channel')
+  .on('postgres_changes', {
+    event: 'INSERT',
+    schema: 'public',
+    table: 'answers',
+  }, (payload) => {
+    // New answer received - update UI
+  })
+  .subscribe();
 ```
 
-### Building for Production
+### Subject Filtering
+
+When you select a subject, the subscription is updated to only receive answers for that subject:
+
+```javascript
+filter: `subject_id=eq.${selectedSubject}`
+```
+
+## Database Schema
+
+### subjects
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| name | TEXT | Subject name (unique) |
+| created_at | TIMESTAMPTZ | Creation timestamp |
+
+### answers
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| content | TEXT | Answer content |
+| author | TEXT | Author name |
+| subject_id | UUID | Foreign key to subjects |
+| created_at | TIMESTAMPTZ | Creation timestamp |
+
+## Building for Production
 
 ```bash
 npm run build
 ```
+
+The built files will be in `client/dist/`. Deploy to any static hosting service (Vercel, Netlify, etc.).
+
+## Why Supabase?
+
+- **Zero backend code**: No server to maintain
+- **Built-in realtime**: WebSocket subscriptions out of the box
+- **PostgreSQL**: Full SQL power with a managed database
+- **Free tier**: Generous limits for development and small projects
+- **Row Level Security**: Fine-grained access control

@@ -1,17 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSocket, useSocketEvent } from './hooks/useSocket';
+import { supabase } from './lib/supabase';
 import Feed from './components/Feed';
 import SubjectFilter from './components/SubjectFilter';
 import SubmitAnswer from './components/SubmitAnswer';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
-
 function App() {
-  const { socket, isConnected } = useSocket();
   const [subjects, setSubjects] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
 
   // Fetch subjects on mount
   useEffect(() => {
@@ -23,68 +21,109 @@ function App() {
     fetchAnswers();
   }, [selectedSubject]);
 
-  // Join socket room when subject changes
+  // Set up real-time subscriptions
   useEffect(() => {
-    if (socket && isConnected) {
-      socket.emit('subject:join', selectedSubject);
-    }
-  }, [socket, isConnected, selectedSubject]);
+    // Subscribe to new answers
+    const answersChannel = supabase
+      .channel('answers-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'answers',
+          ...(selectedSubject && { filter: `subject_id=eq.${selectedSubject}` }),
+        },
+        async (payload) => {
+          // Fetch the full answer with subject info
+          const { data } = await supabase
+            .from('answers')
+            .select('*, subjects(name)')
+            .eq('id', payload.new.id)
+            .single();
+
+          if (data) {
+            setAnswers((prev) => [data, ...prev]);
+          }
+        }
+      )
+      .subscribe((status) => {
+        setIsConnected(status === 'SUBSCRIBED');
+      });
+
+    // Subscribe to new subjects
+    const subjectsChannel = supabase
+      .channel('subjects-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'subjects',
+        },
+        (payload) => {
+          setSubjects((prev) =>
+            [...prev, payload.new].sort((a, b) => a.name.localeCompare(b.name))
+          );
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscriptions on unmount or when subject changes
+    return () => {
+      supabase.removeChannel(answersChannel);
+      supabase.removeChannel(subjectsChannel);
+    };
+  }, [selectedSubject]);
 
   const fetchSubjects = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/subjects`);
-      const data = await response.json();
-      setSubjects(data);
-    } catch (error) {
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('*')
+      .order('name');
+
+    if (error) {
       console.error('Error fetching subjects:', error);
+    } else {
+      setSubjects(data || []);
     }
   };
 
   const fetchAnswers = async () => {
     setLoading(true);
-    try {
-      const url = selectedSubject
-        ? `${API_URL}/api/subjects/${selectedSubject}/answers`
-        : `${API_URL}/api/subjects/all/answers`;
 
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        setAnswers(data);
-      }
-    } catch (error) {
-      console.error('Error fetching answers:', error);
-    } finally {
-      setLoading(false);
+    let query = supabase
+      .from('answers')
+      .select('*, subjects(name)')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (selectedSubject) {
+      query = query.eq('subject_id', selectedSubject);
     }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching answers:', error);
+    } else {
+      setAnswers(data || []);
+    }
+
+    setLoading(false);
   };
-
-  // Handle new answer from socket
-  const handleNewAnswer = useCallback((answer) => {
-    setAnswers((prev) => [answer, ...prev]);
-  }, []);
-
-  // Handle new subject from socket
-  const handleNewSubject = useCallback((subject) => {
-    setSubjects((prev) => [...prev, subject].sort((a, b) => a.name.localeCompare(b.name)));
-  }, []);
-
-  useSocketEvent(socket, 'answer:created', handleNewAnswer);
-  useSocketEvent(socket, 'subject:created', handleNewSubject);
 
   const handleSubjectChange = (subjectId) => {
     setSelectedSubject(subjectId);
   };
 
-  const handleAnswerSubmitted = (answer) => {
-    // Answer will come through socket, but we can optimistically add it
-    // This is handled by the socket event now
-  };
+  const handleSubjectCreated = useCallback((subject) => {
+    // Real-time subscription will handle adding the subject
+  }, []);
 
-  const handleSubjectCreated = (subject) => {
-    // Subject will come through socket
-    // This is handled by the socket event now
-  };
+  const handleAnswerSubmitted = useCallback((answer) => {
+    // Real-time subscription will handle adding the answer
+  }, []);
 
   return (
     <div className="app">
