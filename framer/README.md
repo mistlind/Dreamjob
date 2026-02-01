@@ -15,57 +15,74 @@ A complete solution for collecting dream job submissions in Framer with real-tim
 ### Step 1: Set Up Supabase
 
 1. Create a free account at [supabase.com](https://supabase.com)
-2. Create a new project
-3. Go to **SQL Editor** and run the schema from `supabase/dream_jobs_schema.sql`
-4. Get your credentials from **Settings > API**:
-   - `Project URL` (e.g., `https://xxxxx.supabase.co`)
-   - `anon public` key
+2. Create a new project (wait for it to finish setting up)
+3. Go to **SQL Editor** in the left sidebar
+4. Click **New Query** and paste the contents of `supabase/dream_jobs_schema.sql`
+5. Click **Run** to create the table
+6. Get your credentials from **Settings > API**:
+   - Copy the `Project URL` (e.g., `https://xxxxx.supabase.co`)
+   - Copy the `anon public` key (starts with `eyJ...`)
 
-### Step 2: Add Code to Framer
+### Step 2: Add Code Files to Framer (IN THIS ORDER)
+
+**Important**: Add files in this specific order to avoid import errors.
 
 1. Open your Framer project
-2. Go to **Assets** panel > **Code** tab
-3. Click **+** to create new code files
-4. Copy each file from the `framer/` folder:
-   - `supabaseClient.tsx` - Supabase connection
-   - `countries.tsx` - Country data with flags
-   - `DreamJobForm.tsx` - Form component
-   - `DreamJobFeed.tsx` - Live feed component
-   - `DreamJobCounter.tsx` - Counter component
-   - `overrides.tsx` - Code overrides (optional)
+2. Go to **Assets** panel (left sidebar) > **Code** tab
+3. Create files in this order:
 
-### Step 3: Configure Supabase Credentials
+**File 1: `countries.tsx`**
+- Click **+** > **New Code File**
+- Name it exactly: `countries.tsx`
+- Copy/paste the entire contents from `framer/countries.tsx`
 
-**Option A: In Custom Code Settings (Recommended)**
+**File 2: `supabaseClient.tsx`**
+- Click **+** > **New Code File**
+- Name it exactly: `supabaseClient.tsx`
+- Copy/paste the entire contents from `framer/supabaseClient.tsx`
 
-1. Go to **Site Settings** > **General** > **Custom Code**
-2. In the `<head>` section, add:
+**File 3: Install the Supabase package**
+- With `supabaseClient.tsx` open, click the **package icon** (📦) in the code editor toolbar
+- Search for `@supabase/supabase-js`
+- Click **Install**
 
-```html
-<script>
-  window.SUPABASE_URL = "https://your-project-id.supabase.co";
-  window.SUPABASE_ANON_KEY = "your-anon-key-here";
-</script>
-```
-
-**Option B: In Code File**
-
-Edit `supabaseClient.tsx` and replace the placeholder values:
-
+**File 4: Configure your credentials**
+- In `supabaseClient.tsx`, find these lines near the top:
 ```typescript
-const SUPABASE_URL = "https://your-project-id.supabase.co"
-const SUPABASE_ANON_KEY = "your-anon-key-here"
+const SUPABASE_URL = "YOUR_SUPABASE_URL"
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"
 ```
+- Replace with your actual values from Step 1
 
-### Step 4: Add Components to Canvas
+**File 5: `DreamJobForm.tsx`**
+- Click **+** > **New Code File**
+- Name it exactly: `DreamJobForm.tsx`
+- Copy/paste from `framer/DreamJobForm.tsx`
 
-The components will appear in your **Components** panel:
+**File 6: `DreamJobFeed.tsx`** (optional)
+- Same process with `framer/DreamJobFeed.tsx`
 
-- **DreamJobForm**: Complete form with all fields
-- **DreamJobFeed**: Auto-scrolling live feed
-- **DreamJobCounter**: Animated entry counter
+**File 7: `DreamJobCounter.tsx`** (optional)
+- Same process with `framer/DreamJobCounter.tsx`
 
-Drag them onto your canvas and customize using the properties panel.
+### Step 3: Use the Components
+
+After adding the files correctly:
+
+1. Go to **Assets** panel > **Components** tab
+2. You should see: **DreamJobForm**, **DreamJobFeed**, **DreamJobCounter**
+3. Drag them onto your canvas
+4. Customize using the properties panel on the right
+
+### Troubleshooting: Components Not Showing
+
+If components don't appear in the Components tab:
+
+1. **Check for errors**: Open each code file and look for red underlines
+2. **Package not installed**: Make sure you installed `@supabase/supabase-js` (see Step 2, File 3)
+3. **File naming**: File names must match exactly (case-sensitive)
+4. **Import paths**: Imports should be `./countries` and `./supabaseClient` (lowercase)
+5. **Refresh**: Close and reopen the code files, or refresh the Framer browser tab
 
 ## Supabase Schema
 

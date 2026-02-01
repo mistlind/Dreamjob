@@ -2,46 +2,28 @@
  * Supabase Client Configuration for Framer
  *
  * SETUP INSTRUCTIONS:
- * 1. In Framer, go to your project settings
- * 2. Navigate to "General" > "Custom Code"
- * 3. In the <head> section, add:
- *    <script>
- *      window.SUPABASE_URL = "https://your-project-id.supabase.co";
- *      window.SUPABASE_ANON_KEY = "your-anon-key-here";
- *    </script>
- *
- * OR use the hardcoded values below (less secure but simpler)
+ * 1. In Framer, create this file in your Code folder
+ * 2. Click the package icon (box) in the code editor toolbar
+ * 3. Search for "@supabase/supabase-js" and install it
+ * 4. Replace YOUR_SUPABASE_URL and YOUR_SUPABASE_ANON_KEY below with your actual credentials
+ *    (Get these from Supabase Dashboard > Settings > API)
  */
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2"
+// IMPORTANT: You must install this package in Framer first!
+// Click the package icon in the code editor and search for "@supabase/supabase-js"
+import { createClient, SupabaseClient } from "@supabase/supabase-js"
 
-// Configuration - Replace these with your Supabase credentials
-// Option 1: Hardcode your values (simpler but less secure)
-const SUPABASE_URL = "YOUR_SUPABASE_URL"
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"
-
-// Option 2: Use window variables (set in Framer custom code settings)
-// This allows you to keep credentials out of the code
-const getSupabaseUrl = (): string => {
-    if (typeof window !== "undefined" && (window as any).SUPABASE_URL) {
-        return (window as any).SUPABASE_URL
-    }
-    return SUPABASE_URL
-}
-
-const getSupabaseKey = (): string => {
-    if (typeof window !== "undefined" && (window as any).SUPABASE_ANON_KEY) {
-        return (window as any).SUPABASE_ANON_KEY
-    }
-    return SUPABASE_ANON_KEY
-}
+// ⚠️ REQUIRED: Replace these with your Supabase credentials
+// Get these from: Supabase Dashboard > Settings > API
+const SUPABASE_URL = "YOUR_SUPABASE_URL"        // e.g., "https://abc123.supabase.co"
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"  // e.g., "eyJhbGc..."
 
 // Create and export the Supabase client
 let supabaseInstance: SupabaseClient | null = null
 
 export const getSupabase = (): SupabaseClient => {
     if (!supabaseInstance) {
-        supabaseInstance = createClient(getSupabaseUrl(), getSupabaseKey(), {
+        supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             realtime: {
                 params: {
                     eventsPerSecond: 10,
